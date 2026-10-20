@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Test
+        # Replace with the project's real commands once it has code. `make test` is the convention.
+        run: |
+          if [ -f Makefile ] && grep -q '^test:' Makefile; then make test
+          elif [ -f go.mod ]; then go vet ./... && go test ./...
+          elif [ -f pyproject.toml ]; then pip install -e ".[dev]" && pytest
+          else echo "no tests yet"; fi
