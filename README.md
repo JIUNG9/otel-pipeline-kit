@@ -14,11 +14,17 @@ This kit pairs the two fixes and tests them together:
 
 ## Quick start
 
-Nothing runnable yet. The configs, Helm values and tests are tracked in the roadmap below; this README is updated with the commands as each piece lands.
+The two collector configs are in `configs/`. Check them with Docker installed:
+
+```bash
+make test
+```
+
+That fails if a pipeline does not start with `memory_limiter`, then runs `otelcol validate` on each config. Environment variables, memory sizing and volume requirements are in [docs/configs.md](docs/configs.md). Helm values and the load test are not written yet.
 
 ## How it works
 
-Planned layout, one collector tier per role:
+One collector tier per role. The bearer-auth receiver is planned and not in the configs yet:
 
 | Tier | Role | Protection |
 | --- | --- | --- |
@@ -29,14 +35,13 @@ A persistent queue needs a volume that outlives the pod (a PersistentVolumeClaim
 
 ## Status
 
-Early. The repo has CI and the OSS hygiene check; the configs are not written yet. Planned, in order:
+Early. The repo has CI, the OSS hygiene check and the gateway and agent configs, validated against the contrib collector 0.116.1. Not yet tested under load or restarts. Planned, in order:
 
-1. Gateway and agent collector configs with `file_storage` queues and `memory_limiter`
-2. Helm values and a kind-based quick start
-3. `telemetrygen` load test with a restart script that asserts zero drops
-4. OTLP bearer-auth receiver example, and a note on never exposing OTLP publicly
-5. Prometheus alert rules and a dashboard for queue depth, drops and refused spans
-6. CI: `otelcol validate` on every config, kind smoke test
+1. Helm values and a kind-based quick start
+2. `telemetrygen` load test with a restart script that asserts zero drops
+3. OTLP bearer-auth receiver example, and a note on never exposing OTLP publicly
+4. Prometheus alert rules and a dashboard for queue depth, drops and refused spans
+5. CI: kind smoke test
 
 ## License
 

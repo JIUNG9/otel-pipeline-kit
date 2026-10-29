@@ -1,0 +1,68 @@
+# Gateway collector: receives OTLP from agents, batches, exports to the backend.
+# Sized for a 2Gi container memory limit; see docs/configs.md for the arithmetic.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage/queue:
+    directory: /var/lib/otelcol/queue
+    timeout: 10s
+    # Compact on start so a queue that drained does not keep its peak file size.
+    # Compaction writes a temporary copy to /tmp, which the image does not ship: mount an emptyDir there.
+    compaction:
+      on_start: true
+      directory: /tmp
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Must be first in every pipeline. Above the soft limit (limit - spike) it
+  # refuses new data, so senders retry instead of the kernel killing the pod.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1600
+    spike_limit_mib: 400
+  batch:
+    send_batch_size: 8192
+    send_batch_max_size: 8192
+    timeout: 5s
+
+exporters:
+  otlphttp/backend:
+    endpoint: ${env:BACKEND_OTLP_ENDPOINT}
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      # Keep retrying for 10 minutes before dropping a batch.
+      max_elapsed_time: 600s
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 5000
+      storage: file_storage/queue
+
+service:
+  extensions: [health_check, file_storage/queue]
+  telemetry:
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/backend]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/backend]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/backend]
